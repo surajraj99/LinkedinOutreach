@@ -63,6 +63,15 @@ class AccountSession:
         self.ensure_browser()
         return discover_self_profile(self)
 
+    @cached_property
+    def self_embedding(self) -> np.ndarray:
+        """Cached 384-dim embedding of the authenticated user's profile."""
+        from linkedin.ml.embeddings import embed_text
+        from linkedin.ml.profile_text import build_profile_text
+
+        user_text = build_profile_text({"profile": self.self_profile})
+        return embed_text(user_text)
+
     def wait(self, min_delay=MIN_DELAY, max_delay=MAX_DELAY):
         from linkedin.models import SiteConfig
         cfg = SiteConfig.load()

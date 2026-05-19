@@ -124,16 +124,13 @@ class Lead(models.Model):
 
     def compute_similarity_against_user(self, session) -> float:
         """Compute semantic similarity between this lead and the authenticated user."""
-        from linkedin.ml.embeddings import embed_text, compute_similarity
-        from linkedin.ml.profile_text import build_profile_text
+        from linkedin.ml.embeddings import compute_similarity
 
         emb = self.embedding_array
         if emb is None:
             return 0.0
 
-        user_profile = session.self_profile
-        user_text = build_profile_text({"profile": user_profile})
-        user_emb = embed_text(user_text)
+        user_emb = session.self_embedding
 
         score = compute_similarity(emb, user_emb)
         self.similarity_score = score
