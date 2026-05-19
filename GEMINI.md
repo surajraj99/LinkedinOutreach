@@ -1,21 +1,23 @@
-# OpenOutreach Project Context
+# OpenOutreach Project Context (Targeted Networking Refactor)
 
-OpenOutreach is a self-hosted, open-source LinkedIn automation tool for B2B lead generation. It uses AI (Bayesian Active Learning + LLMs) to autonomously discover, qualify, and contact leads based on product descriptions and target market objectives.
+OpenOutreach has been refactored from a B2B sales tool into an intelligent, stealthy professional networking tool. It identifies coffee chat prospects by matching profiles against a specific professional fingerprint using local LLMs and similarity scoring.
 
 ## Project Overview
 
-- **Core Tech Stack:** Python 3.12+, Django (with DjangoCRM), Playwright (with stealth), Scikit-learn (GPR), Pydantic AI (LLM integration).
+- **Core Tech Stack:** Python 3.12+, Django, Playwright (with stealth), FastEmbed (BAAI/bge-small-en-v1.5), Pydantic AI (Ollama integration).
 - **Architecture:** 
-    - **CRM-backed:** Built on a Django CRM, using SQLite (`data/db.sqlite3`) for persistence.
-    - **Task-Driven:** A persistent task queue (`Task` model) managed by a daemon (`rundaemon`).
-    - **ML Pipeline:** Gaussian Process Regressor (GPR) on profile embeddings for candidate selection, gated by LLM qualification.
-    - **Stealth Browser Automation:** Mimics real user behavior via Playwright and interacts with LinkedIn's internal Voyager API.
+    - **Local LLM:** All LLM operations run via a local Ollama instance (`gemma4:e4b`).
+    - **Similarity Matching:** Uses cosine similarity between scraped profiles and a `TARGET_VECTOR` professional fingerprint.
+    - **Anti-Ban System:** Strict daily limits (25 views, 5 searches) and randomized stealth intervals (5.5s - 14.2s) between all actions.
+    - **Task-Driven:** Managed by a persistent task queue (`Task` model) and a daemon.
+    - **CSV Export:** Matched profiles are automatically exported to timestamped CSVs in the `exports/` directory every 12 hours.
 
 ## Building and Running
 
 ### Prerequisites
 - Python 3.12+
-- Docker (optional, but recommended for production-like environments)
+- **Ollama:** Running locally with the `gemma4:e4b` model.
+- Docker: Optional, configured with `extra_hosts` to reach the local Ollama instance.
 
 ### Local Setup
 ```bash
@@ -28,43 +30,25 @@ make setup
 # Start the automation daemon
 make run
 
-# Start the Django Admin (CRM UI) at http://localhost:8000/admin/
-make admin
-```
-
-### Docker Commands
-```bash
-make build   # Build Docker images
-make up      # Run in background
-make stop    # Stop services
-make logs    # Follow logs
+# Export matches manually
+python manage.py export_matches
 ```
 
 ## Development Conventions
 
-- **Environment:** Always use the local virtual environment (`.venv/bin/python`).
-- **Coding Style:**
-    - Follow existing patterns in `linkedin/`, `crm/`, and `chat/`.
-    - Custom exceptions are located in `linkedin/exceptions.py`.
-    - All persistent context should be in `CLAUDE.md` or `ARCHITECTURE.md`.
-- **Testing:**
-    - Uses `pytest` with `pytest-django`.
-    - Run all tests: `make test` or `pytest`.
-    - Run specific tests: `pytest tests/api/test_voyager.py` or `pytest -k test_name`.
-- **State Machine:** Profile lifecycle follows: `QUALIFIED` → `READY_TO_CONNECT` → `PENDING` → `CONNECTED` → `COMPLETED` / `FAILED`.
-- **Task Queue:** `linkedin/tasks/scheduler.py` is the single owner of Task creation.
-- **LLM Configuration:** Managed via a `SiteConfig` singleton in the Django Admin. Supports OpenAI, Anthropic, Google, Groq, Mistral, Cohere, and OpenAI-compatible endpoints.
+- **LLM Logic:** All LLM calls must use `get_llm_model()` which routes to `http://host.docker.internal:11434/v1`.
+- **Match Threshold:** Profiles with a `similarity_score > 0.65` are passed to the LLM for deep qualification.
+- **Stealth:** All browser navigation must use `goto_page(session, action, ...)` which enforces randomized human-rhythm pacing.
+- **State Machine:** Automated connection requests and messaging are **disabled** for safety; the system currently focuses on discovery and export.
+- **Task Queue:** `linkedin/tasks/scheduler.py` remains the single owner of Task creation, including the new `EXPORT` task.
 
 ## Key Directories
 
-- `linkedin/`: Core automation logic, tasks, browser interactions, and ML pipeline.
-- `crm/`: Lead and Deal models, integrated with the CRM.
-- `chat/`: Messaging models and history tracking.
-- `docs/`: Extensive documentation on architecture, configuration, and features.
-- `data/`: Persistent storage (SQLite DB).
+- `linkedin/`: Core networking logic, similarity scoring, and Ollama integration.
+- `crm/`: Lead and Deal models, including `is_match` and `similarity_score` persistence.
+- `exports/`: Destination for automated and manual CSV exports (ignored by git).
+- `docs/`: System documentation (Note: some legacy docs may refer to sales features).
 
 ## Documentation Reference
 - [Architecture](./docs/architecture.md)
-- [Configuration](./docs/configuration.md)
-- [Testing](./docs/testing.md)
 - [CLAUDE.md](./CLAUDE.md) - Rules and quick reference.
