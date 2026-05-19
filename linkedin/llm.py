@@ -88,19 +88,37 @@ def run_agent_sync(coro: Awaitable[_T]) -> _T:
 
 # ── Per-provider builders ────────────────────────────────────────────
 
-def _build_openai(cfg):
+def get_llm_client(base_url: str | None, api_key: str):
+    """Return a fresh AsyncOpenAI client with a dedicated connection pool."""
+    import httpx
     from openai import AsyncOpenAI
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    return AsyncOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        max_retries=_MAX_RETRIES,
+        http_client=httpx.AsyncClient(transport=transport),
+    )
+
+
+def _build_openai(cfg):
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
-    client = AsyncOpenAI(api_key=cfg.llm_api_key, max_retries=_MAX_RETRIES)
+    client = get_llm_client(None, cfg.llm_api_key)
     return OpenAIModel(cfg.ai_model, provider=OpenAIProvider(openai_client=client))
 
 
 def _build_anthropic(cfg):
+    import httpx
     from anthropic import AsyncAnthropic
     from pydantic_ai.models.anthropic import AnthropicModel
     from pydantic_ai.providers.anthropic import AnthropicProvider
-    client = AsyncAnthropic(api_key=cfg.llm_api_key, max_retries=_MAX_RETRIES)
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    client = AsyncAnthropic(
+        api_key=cfg.llm_api_key,
+        max_retries=_MAX_RETRIES,
+        http_client=httpx.AsyncClient(transport=transport),
+    )
     return AnthropicModel(cfg.ai_model, provider=AnthropicProvider(anthropic_client=client))
 
 
@@ -111,10 +129,16 @@ def _build_google(cfg):
 
 
 def _build_groq(cfg):
+    import httpx
     from groq import AsyncGroq
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
-    client = AsyncGroq(api_key=cfg.llm_api_key, max_retries=_MAX_RETRIES)
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    client = AsyncGroq(
+        api_key=cfg.llm_api_key,
+        max_retries=_MAX_RETRIES,
+        http_client=httpx.AsyncClient(transport=transport),
+    )
     return GroqModel(cfg.ai_model, provider=GroqProvider(groq_client=client))
 
 
@@ -135,9 +159,8 @@ def _build_openai_compatible(cfg):
         raise ValueError("LLM_API_BASE is required for the openai_compatible provider.")
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
-    return OpenAIModel(cfg.ai_model, provider=OpenAIProvider(
-        base_url=cfg.llm_api_base, api_key=cfg.llm_api_key,
-    ))
+    client = get_llm_client(cfg.llm_api_base, cfg.llm_api_key)
+    return OpenAIModel(cfg.ai_model, provider=OpenAIProvider(openai_client=client))
 
 
 _PROVIDER_BUILDERS: dict[str, Callable] = {
@@ -154,15 +177,17 @@ _PROVIDER_BUILDERS: dict[str, Callable] = {
 # ── Model factory ────────────────────────────────────────────────────
 
 def get_llm_model():
-    """Return a configured pydantic-ai `Model` for the local Ollama instance."""
+    """Return a configured pydantic-ai `Model` from SiteConfig."""
+    from linkedin.models import SiteConfig
+    cfg = SiteConfig.load()
+
+    builder = _PROVIDER_BUILDERS.get(cfg.llm_provider)
+    if builder:
+        return builder(cfg)
+
+    # Fallback to local Ollama if no config or unknown provider
+    from linkedin.conf import OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_API_KEY
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
-    from openai import AsyncOpenAI
-    from linkedin.conf import OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_API_KEY
-
-    client = AsyncOpenAI(
-        base_url=OLLAMA_API_BASE,
-        api_key=OLLAMA_API_KEY,
-        max_retries=_MAX_RETRIES,
-    )
+    client = get_llm_client(OLLAMA_API_BASE, OLLAMA_API_KEY)
     return OpenAIModel(OLLAMA_MODEL, provider=OpenAIProvider(openai_client=client))
