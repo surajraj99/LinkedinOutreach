@@ -20,6 +20,15 @@
 
 ---
 
+### ⚠️ IMPORTANT: Ban Risk Warning
+**Using automated tools on LinkedIn violates their Terms of Service.**
+This project uses Playwright with stealth plugins to mimic human behavior, but there is **no such thing as zero risk**. Running unproxied automation from a residential or datacenter IP frequently associated with your account can lead to permanent bans.
+- **Start slow:** Use the built-in rate limits and randomize delays.
+- **Use proxies:** For production-scale outreach, always use a high-quality residential proxy.
+- **Monitor:** Watch the browser automation live via VNC to ensure it isn't triggering CAPTCHAs or unusual behavior.
+
+---
+
 ### 🚀 What is OpenOutreach?
 
 OpenOutreach is a **self-hosted, open-source LinkedIn automation tool** for B2B lead generation. Unlike other tools, **you don't need a list of profiles to contact** — you describe your product and your target market, and the system autonomously discovers, qualifies, and contacts the right people.

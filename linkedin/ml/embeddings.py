@@ -50,5 +50,34 @@ def compute_similarity(embedding: np.ndarray) -> float:
     
     if norm_a == 0 or norm_b == 0:
         return 0.0
-        
+
     return float(dot_product / (norm_a * norm_b))
+
+
+def compute_response_likelihood(similarity_score: float, last_active_date) -> float:
+    """
+    Calculate a response probability metric combining semantic similarity and activity.
+
+    Rules:
+    - If last_active_date is None or older than 90 days, cap likelihood at 0.1.
+    - If user was active within 7 days, apply a scalar multiplier to base similarity.
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+
+    if last_active_date is None:
+        return min(similarity_score, 0.1)
+
+    now = timezone.now()
+    age = now - last_active_date
+
+    if age > timedelta(days=90):
+        return min(similarity_score, 0.1)
+
+    likelihood = similarity_score
+
+    if age <= timedelta(days=7):
+        # User is highly active, boost the base similarity score
+        likelihood *= 1.5
+
+    return min(likelihood, 1.0)

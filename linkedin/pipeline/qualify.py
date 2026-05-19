@@ -84,15 +84,28 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
     else:
         logger.debug("%s GP not fitted (%d obs) — querying LLM", public_id, qualifier.n_obs)
 
+    # --- Activity & Likelihood ---
+    from linkedin.ml.embeddings import compute_response_likelihood
+
+    activity = candidate.get_activity(session)
+    likelihood = compute_response_likelihood(candidate.similarity_score or 0.0, candidate.last_active_date)
+
+    recent_posts_text = ""
+    if activity:
+        recent_posts_text = "\n\n".join([f"Post: {p.get('text')}" for p in activity])
+
     profile_text = _fetch_profile_text(session, lead_id, public_id)
     if not profile_text:
         logger.warning("No profile text for lead %d \u2014 disqualifying", lead_id)
         _save_qualification_result(session, qualifier, lead_id, public_id, embedding, 0, "no profile text available")
         return public_id
 
+    campaign = session.campaign
     label, reason = qualify_with_llm(
         profile_text,
-        similarity_score=candidate.similarity_score or 0.0,
+        similarity_score=likelihood,
+        campaign_objective=campaign.campaign_objective,
+        recent_posts=recent_posts_text,
     )
     _save_qualification_result(session, qualifier, lead_id, public_id, embedding, label, reason)
     return public_id

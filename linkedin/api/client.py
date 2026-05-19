@@ -151,6 +151,29 @@ class PlaywrightLinkedinAPI:
         extracted_info = parse_linkedin_voyager_response(data, public_identifier=public_identifier)
         return extracted_info, data
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=2, max=30),
+        retry=retry_if_exception_type(IOError),
+        reraise=True,
+    )
+    def get_recent_activity(self, public_identifier: str) -> dict:
+        """Fetch recent activity updates for a member via profileUpdatesV2."""
+        params = {
+            'count': 10,
+            'memberIdentity': public_identifier,
+            'q': 'memberIdentity',
+        }
+        url = "https://www.linkedin.com/voyager/api/identity/profileUpdatesV2"
+        res = self.get(url, params=params)
+
+        if res.status == 401:
+            raise AuthenticationError("LinkedIn API returned 401 Unauthorized.")
+        if not res.ok:
+            return {}
+
+        return res.json()
+
     TOPCARD_DECORATION = (
         "com.linkedin.voyager.dash.deco.identity.profile.TopCardSupplementary-120"
     )

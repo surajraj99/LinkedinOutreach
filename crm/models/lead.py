@@ -20,6 +20,8 @@ class Lead(models.Model):
     similarity_score = models.FloatField(null=True, blank=True)
     is_match = models.BooleanField(default=False)
     exported_to_csv = models.BooleanField(default=False)
+    activity_data = models.JSONField(null=True, blank=True)
+    last_active_date = models.DateTimeField(null=True, blank=True)
     disqualified = models.BooleanField(default=False)
     creation_date = models.DateTimeField(default=timezone.now)
     update_date = models.DateTimeField(auto_now=True)
@@ -73,6 +75,34 @@ class Lead(models.Model):
         if self.urn:
             return self.urn
         raise ValueError(f"Lead {self.pk}: could not resolve URN after re-fetch")
+
+    def get_activity(self, session) -> list[dict] | None:
+        """Live Voyager scrape of recent activity (last 3 posts)."""
+        from datetime import datetime
+        from linkedin.api.client import PlaywrightLinkedinAPI
+        from linkedin.api.activity import parse_activity_response
+
+        session.ensure_browser()
+        api = PlaywrightLinkedinAPI(session=session)
+        try:
+            raw_activity = api.get_recent_activity(public_identifier=self.public_identifier)
+        except Exception as e:
+            logger.warning("get_activity failed for %s: %s", self.public_identifier, e)
+            return None
+
+        if not raw_activity:
+            return None
+
+        activity = parse_activity_response(raw_activity)
+        if activity:
+            self.activity_data = activity
+            latest_ts = activity[0].get("timestamp")
+            if latest_ts:
+                # Voyager timestamps are usually in milliseconds
+                self.last_active_date = datetime.fromtimestamp(latest_ts / 1000.0, tz=timezone.utc)
+            self.save(update_fields=["activity_data", "last_active_date"])
+
+        return activity
 
     def get_embedding(self, session) -> np.ndarray | None:
         """384-dim embedding. Lazy: scrapes + embeds on first access."""

@@ -37,6 +37,7 @@ class SiteConfig(models.Model):
     llm_api_key = models.CharField(max_length=500, blank=True, default="")
     ai_model = models.CharField(max_length=200, blank=True, default="")
     llm_api_base = models.CharField(max_length=500, blank=True, default="")
+    randomize_delays = models.BooleanField(default=True)
 
     class Meta:
         app_label = "linkedin"

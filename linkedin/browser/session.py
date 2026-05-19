@@ -64,6 +64,13 @@ class AccountSession:
         return discover_self_profile(self)
 
     def wait(self, min_delay=MIN_DELAY, max_delay=MAX_DELAY):
+        from linkedin.models import SiteConfig
+        cfg = SiteConfig.load()
+        if cfg.randomize_delays:
+            # Inject broader random sleep intervals (45s - 120s) for ToS safety
+            min_delay = max(min_delay, 45.0)
+            max_delay = max(max_delay, 120.0)
+
         random_sleep(min_delay, max_delay)
         self.page.wait_for_load_state("domcontentloaded")
 

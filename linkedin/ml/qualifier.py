@@ -40,12 +40,17 @@ def format_prediction(prob: float, entropy: float, std: float, n_obs: int) -> st
 
 class QualificationDecision(BaseModel):
     """Structured LLM output for lead qualification."""
-    is_match: bool = Field(description="True if they work in computational biology, data science, or foundation models")
-    talking_points: str = Field(description="1-2 sentences identifying shared technical ground")
+    is_match: bool = Field(description="True if the profile matches the campaign objective")
+    talking_points: str = Field(description="1-2 sentences identifying shared ground or interesting activity")
 
 
-def qualify_with_llm(profile_text: str, similarity_score: float) -> tuple[int, str]:
-    """Call LLM to qualify a profile based on similarity and content. Returns (label, reason).
+def qualify_with_llm(
+    profile_text: str,
+    similarity_score: float,
+    campaign_objective: str,
+    recent_posts: str = "",
+) -> tuple[int, str]:
+    """Call LLM to qualify a profile based on similarity, objective, and activity. Returns (label, reason).
 
     label: 1 = accept, 0 = reject.
     """
@@ -61,6 +66,8 @@ def qualify_with_llm(profile_text: str, similarity_score: float) -> tuple[int, s
 
     prompt = template.render(
         profile_text=profile_text,
+        campaign_objective=campaign_objective,
+        recent_posts=recent_posts,
     )
 
     agent = Agent(
