@@ -16,4 +16,5 @@ __pycache__/
 .cache/
 tests/fixtures/pages/**/*.html
 PLAN.md
+CREDENTIALS.md
 /exports/

@@ -78,9 +78,14 @@ def playwright_login(session: "AccountSession"):
         error_message="Failed to load login page",
     )
 
-    human_type(resolve_locator(page, EMAIL_LOCATORS), lp.linkedin_username)
+    email_locator = resolve_locator(page, EMAIL_LOCATORS)
+    email_locator.click()
+    email_locator.fill(lp.linkedin_username)
     session.wait()
-    human_type(resolve_locator(page, PASSWORD_LOCATORS), lp.linkedin_password)
+
+    pass_locator = resolve_locator(page, PASSWORD_LOCATORS)
+    pass_locator.click()
+    pass_locator.fill(lp.linkedin_password)
     session.wait()
 
     submit = resolve_locator(page, SUBMIT_LOCATORS)
