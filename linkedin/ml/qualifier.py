@@ -49,13 +49,15 @@ def qualify_with_llm(
     similarity_score: float,
     campaign_objective: str,
     recent_posts: str = "",
+    likelihood_score: float = 0.0,
 ) -> tuple[int, str]:
     """Call LLM to qualify a profile based on similarity, objective, and activity. Returns (label, reason).
 
     label: 1 = accept, 0 = reject.
     """
-    if similarity_score < 0.65:
-        return (0, f"Low similarity score: {similarity_score:.4f}")
+    # Programmatic threshold for semantic similarity only (more forgiving)
+    if similarity_score < 0.40:
+        return (0, f"Low semantic similarity score: {similarity_score:.4f}")
 
     from pydantic_ai import Agent
 
@@ -68,6 +70,8 @@ def qualify_with_llm(
         profile_text=profile_text,
         campaign_objective=campaign_objective,
         recent_posts=recent_posts,
+        similarity_score=similarity_score,
+        likelihood_score=likelihood_score,
     )
 
     agent = Agent(

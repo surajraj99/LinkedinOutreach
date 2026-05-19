@@ -87,8 +87,14 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
     # --- Activity & Likelihood ---
     from linkedin.ml.embeddings import compute_response_likelihood
 
+    # 1. Compute dynamic semantic similarity against the actual logged-in user
+    similarity_score = candidate.compute_similarity_against_user(session)
+
+    # 2. Extract activity data
     activity = candidate.get_activity(session)
-    likelihood = compute_response_likelihood(candidate.similarity_score or 0.0, candidate.last_active_date)
+    
+    # 3. Compute response likelihood (using semantic score as base)
+    likelihood = compute_response_likelihood(similarity_score, candidate.last_active_date)
 
     recent_posts_text = ""
     if activity:
@@ -103,9 +109,10 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
     campaign = session.campaign
     label, reason = qualify_with_llm(
         profile_text,
-        similarity_score=likelihood,
+        similarity_score=similarity_score,
         campaign_objective=campaign.campaign_objective,
         recent_posts=recent_posts_text,
+        likelihood_score=likelihood,
     )
     _save_qualification_result(session, qualifier, lead_id, public_id, embedding, label, reason)
     return public_id

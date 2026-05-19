@@ -15,6 +15,10 @@ Evaluate if this person is a match for our professional networking goal.
 A person is a match IF their profile aligns with the following campaign objective: 
 {{ campaign_objective }}
 
+## Scoring Metadata
+- Semantic Similarity Score: {{ similarity_score }} (how well their background matches the recruiter's)
+- Response Likelihood Score: {{ likelihood_score }} (weighted by platform activity; >0.8 is highly active, <0.2 is likely inactive)
+
 Output a JSON object with:
 - is_match (boolean): True if they match the objective, False otherwise.
 - talking_points (string): 1-2 sentences identifying shared technical ground or interesting work they have done. 

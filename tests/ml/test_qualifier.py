@@ -8,14 +8,24 @@ from linkedin.ml.qualifier import qualify_with_llm
 def test_dynamic_qualification(mock_get_model, mock_run_sync, mock_agent):
     profile_text = "Experienced Data Scientist with a focus on Machine Learning and NLP."
     
-    # Case A: healthcare marketers
+    # Case A: low similarity (auto-reject)
+    label_low, reason_low = qualify_with_llm(
+        profile_text, 
+        similarity_score=0.3, 
+        campaign_objective="Find anyone"
+    )
+    assert label_low == 0
+    assert "Low semantic similarity" in reason_low
+
+    # Case B: healthcare marketers (LLM rejection)
     mock_run_sync.return_value.output.is_match = False
     mock_run_sync.return_value.output.talking_points = "Not a fit for healthcare marketing."
     
     label_a, reason_a = qualify_with_llm(
         profile_text, 
-        similarity_score=0.8, 
-        campaign_objective="Find healthcare marketers"
+        similarity_score=0.5, # Above 0.4 threshold
+        campaign_objective="Find healthcare marketers",
+        likelihood_score=0.1 # Inactive user but should still hit LLM
     )
     assert label_a == 0
     assert "Not a fit" in reason_a

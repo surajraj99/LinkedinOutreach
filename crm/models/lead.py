@@ -113,15 +113,32 @@ class Lead(models.Model):
         return self.embedding_array
 
     def embed_from_profile(self, profile: dict) -> None:
-        """Compute and persist the 384-dim embedding and similarity score."""
-        from linkedin.ml.embeddings import embed_text, compute_similarity
+        """Compute and persist the 384-dim embedding."""
+        from linkedin.ml.embeddings import embed_text
         from linkedin.ml.profile_text import build_profile_text
 
         text = build_profile_text({"profile": profile})
         emb = embed_text(text)
         self.embedding = emb.tobytes()
-        self.similarity_score = compute_similarity(emb)
-        self.save(update_fields=["embedding", "similarity_score"])
+        self.save(update_fields=["embedding"])
+
+    def compute_similarity_against_user(self, session) -> float:
+        """Compute semantic similarity between this lead and the authenticated user."""
+        from linkedin.ml.embeddings import embed_text, compute_similarity
+        from linkedin.ml.profile_text import build_profile_text
+
+        emb = self.embedding_array
+        if emb is None:
+            return 0.0
+
+        user_profile = session.self_profile
+        user_text = build_profile_text({"profile": user_profile})
+        user_emb = embed_text(user_text)
+
+        score = compute_similarity(emb, user_emb)
+        self.similarity_score = score
+        self.save(update_fields=["similarity_score"])
+        return score
 
     def to_profile_dict(self) -> dict:
         """Standard profile dict shape used by qualifiers and pools.
