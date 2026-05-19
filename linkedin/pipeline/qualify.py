@@ -44,9 +44,15 @@ def fetch_qualification_candidates(session):
 def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
     """Qualify one unlabelled profile via BALD/auto-decision/LLM. Returns public_id or None."""
     from linkedin.ml.qualifier import qualify_with_llm, format_prediction
+    from linkedin.models import ActionLog
 
     candidates = fetch_qualification_candidates(session)
     if not candidates:
+        return None
+
+    # --- Rate limit check ---
+    if not session.linkedin_profile.can_execute(ActionLog.ActionType.PROFILE_VIEW):
+        logger.warning("Daily profile view limit reached — halting qualification")
         return None
 
     logger.info(colored("\u25b6 qualify", "blue", attrs=["bold"]))
@@ -93,6 +99,9 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
     # 2. Extract activity data
     activity = candidate.get_activity(session)
     
+    # --- Human delay between back-to-back Voyager requests ---
+    session.wait()
+
     # 3. Compute response likelihood (using semantic score as base)
     likelihood = compute_response_likelihood(similarity_score, candidate.last_active_date)
 
@@ -105,6 +114,9 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
         logger.warning("No profile text for lead %d \u2014 disqualifying", lead_id)
         _save_qualification_result(session, qualifier, lead_id, public_id, embedding, 0, "no profile text available")
         return public_id
+
+    # Successfully fetched profile data — record action to track daily limits
+    session.linkedin_profile.record_action(ActionLog.ActionType.PROFILE_VIEW, session.campaign)
 
     campaign = session.campaign
     label, reason = qualify_with_llm(
