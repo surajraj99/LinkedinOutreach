@@ -1,19 +1,17 @@
-You are a B2B sales research expert. Your task is to generate LinkedIn People search queries that will find prospects matching our campaign.
+You are an expert LinkedIn recruiter. Your task is to convert the user's natural language networking goal into a set of highly specific LinkedIn Boolean search strings.
 
-## Our Product/Service
-{{ product_docs }}
+## User's Networking Goal
+{{ natural_language_query }}
 
-## Campaign Objective
+## Campaign Objective (Context)
 {{ campaign_objective }}
 
 ## Instructions
-Generate exactly {{ n_keywords }} LinkedIn People search queries. Each query should be a short phrase (2-5 words) that someone would type into LinkedIn's People search bar to find relevant prospects.
-
-Focus on:
-- Job titles and roles of decision-makers or influencers for our product
-- Industry-specific terminology
-- Seniority levels combined with functional areas
-- Variations and synonyms to maximize coverage
+Generate exactly {{ n_keywords }} LinkedIn Boolean search queries.
+- Use Boolean operators (AND, OR, NOT) and double quotes for exact phrases.
+- Queries must be highly specific to find people matching the user's goal.
+- Aim for a balance of job titles, skills, and affiliations.
+- Example: ("foundation models" OR "LLM") AND "researcher" AND "New York"
 
 {% if exclude_keywords %}
 ## Previously Used Queries (do NOT repeat these)

@@ -122,6 +122,15 @@ def enqueue_follow_up(
     )
 
 
+def enqueue_export(delay_seconds: float = 0) -> None:
+    """Enqueue a CSV export task."""
+    _insert_task(
+        task_type=Task.TaskType.EXPORT,
+        payload={},
+        delay_seconds=delay_seconds,
+    )
+
+
 # ── Delay helpers ─────────────────────────────────────────────────────
 
 
@@ -209,6 +218,14 @@ def reconcile(session) -> None:
     _recover_stale_running_tasks()
     _seed_connect_tasks(session)
     _seed_deal_tasks(session)
+    _seed_export_task()
 
     pending_count = Task.objects.pending().count()
     logger.info("Task queue reconciled: %d pending tasks", pending_count)
+
+
+def _seed_export_task() -> None:
+    """Ensure at least one export task is pending."""
+    if not Task.objects.filter(task_type=Task.TaskType.EXPORT, status=Task.Status.PENDING).exists():
+        # Schedule the first one for 12 hours from now
+        enqueue_export(delay_seconds=12 * 3600)

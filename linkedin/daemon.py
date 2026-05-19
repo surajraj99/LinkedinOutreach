@@ -30,10 +30,25 @@ from linkedin.tasks.follow_up import handle_follow_up
 
 logger = logging.getLogger(__name__)
 
+def handle_export(task, session, qualifiers):
+    from django.core.management import call_command
+    from linkedin.tasks.scheduler import enqueue_export
+
+    logger.info("[%s] %s", "system", colored("\u25b6 export", "yellow", attrs=["bold"]))
+    try:
+        call_command("export_matches")
+    except Exception as e:
+        logger.error("Export command failed: %s", e)
+
+    # Reschedule for 12 hours later
+    enqueue_export(delay_seconds=12 * 3600)
+
+
 _HANDLERS = {
     Task.TaskType.CONNECT: handle_connect,
     Task.TaskType.CHECK_PENDING: handle_check_pending,
     Task.TaskType.FOLLOW_UP: handle_follow_up,
+    Task.TaskType.EXPORT: handle_export,
 }
 
 HEARTBEAT_INTERVAL = 300  # 5 minutes

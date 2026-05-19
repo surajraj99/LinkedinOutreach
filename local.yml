@@ -16,5 +16,7 @@ services:
       - HOST_GID=${HOST_GID:-1000}
     volumes:
       - .:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "6080:6080"

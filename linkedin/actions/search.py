@@ -47,7 +47,13 @@ def _detect_profile_redirect(session, old_public_id: str) -> str | None:
 
 
 def visit_profile(session: "AccountSession", profile: Dict[str, Any]):
+    from linkedin.models import ActionLog
     public_identifier = profile.get("public_identifier")
+
+    # --- Rate limit check ---
+    if not session.linkedin_profile.can_execute(ActionLog.ActionType.PROFILE_VIEW):
+        logger.info("Daily profile view limit reached — skipping %s", public_identifier)
+        return
 
     # Ensure browser is alive before doing anything
     session.ensure_browser()
@@ -60,23 +66,53 @@ def visit_profile(session: "AccountSession", profile: Dict[str, Any]):
     url = profile.get("url")
     _go_to_profile(session, url, public_identifier)
 
+    session.linkedin_profile.record_action(ActionLog.ActionType.PROFILE_VIEW, session.campaign)
+
     # Discover and enrich new profiles visible on the page
     urls = extract_in_urls(session.page)
     discover_and_enrich(session, urls)
 
 
 def _initiate_search(session: "AccountSession", keyword: str):
-    """Navigate directly to LinkedIn People search results for *keyword*."""
+    """Execute search via the standard LinkedIn search bar."""
     page = session.page
-    params = urlencode({"keywords": keyword, "origin": "GLOBAL_SEARCH_HEADER"})
-    url = f"https://www.linkedin.com/search/results/people/?{params}"
+    
+    # Ensure we start from a page with a search bar (like the feed)
+    if "linkedin.com" not in page.url or "/search/" in page.url:
+        goto_page(
+            session,
+            action=lambda: page.goto("https://www.linkedin.com/feed/"),
+            expected_url_pattern="linkedin.com",
+            error_message="Failed to reach LinkedIn for search"
+        )
+    
+    # Click search bar and type keyword
+    page.wait_for_selector(SELECTORS["search_bar"])
+    page.click(SELECTORS["search_bar"])
+    human_type(page, SELECTORS["search_bar"], keyword)
+    page.keyboard.press("Enter")
 
-    goto_page(
-        session,
-        action=lambda: page.goto(url),
-        expected_url_pattern="/search/results/people/",
-        error_message="Failed to reach People search results",
-    )
+    # Navigate to the 'People' tab if we didn't land there
+    try:
+        page.wait_for_url("**/search/results/**", timeout=10000)
+        if "/people/" not in page.url:
+            # Click the 'People' filter button if it exists
+            people_filter = page.get_by_role("button", name="People")
+            if people_filter.count() > 0:
+                people_filter.click()
+                page.wait_for_url("**/search/results/people/**")
+            else:
+                # Fallback to direct People search URL with keywords
+                params = urlencode({"keywords": keyword, "origin": "GLOBAL_SEARCH_HEADER"})
+                url = f"https://www.linkedin.com/search/results/people/?{params}"
+                page.goto(url)
+    except Exception:
+        # Final fallback
+        params = urlencode({"keywords": keyword, "origin": "GLOBAL_SEARCH_HEADER"})
+        url = f"https://www.linkedin.com/search/results/people/?{params}"
+        page.goto(url)
+
+    page.wait_for_url("**/search/results/people/**", timeout=10000)
 
 
 def _paginate_to_next_page(session: "AccountSession", page_num: int):

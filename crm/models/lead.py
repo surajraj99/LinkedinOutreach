@@ -17,6 +17,9 @@ class Lead(models.Model):
     public_identifier = models.CharField(max_length=200, unique=True)
     urn = models.CharField(max_length=200, null=True, blank=True, unique=True, db_index=True)
     embedding = models.BinaryField(null=True, blank=True)
+    similarity_score = models.FloatField(null=True, blank=True)
+    is_match = models.BooleanField(default=False)
+    exported_to_csv = models.BooleanField(default=False)
     disqualified = models.BooleanField(default=False)
     creation_date = models.DateTimeField(default=timezone.now)
     update_date = models.DateTimeField(auto_now=True)
@@ -80,18 +83,15 @@ class Lead(models.Model):
         return self.embedding_array
 
     def embed_from_profile(self, profile: dict) -> None:
-        """Compute and persist the 384-dim embedding from an in-hand profile.
-
-        Used by callers that already have a freshly parsed profile dict,
-        so they can skip the scrape that ``get_embedding`` would trigger.
-        """
-        from linkedin.ml.embeddings import embed_text
+        """Compute and persist the 384-dim embedding and similarity score."""
+        from linkedin.ml.embeddings import embed_text, compute_similarity
         from linkedin.ml.profile_text import build_profile_text
 
         text = build_profile_text({"profile": profile})
         emb = embed_text(text)
         self.embedding = emb.tobytes()
-        self.save(update_fields=["embedding"])
+        self.similarity_score = compute_similarity(emb)
+        self.save(update_fields=["embedding", "similarity_score"])
 
     def to_profile_dict(self) -> dict:
         """Standard profile dict shape used by qualifiers and pools.

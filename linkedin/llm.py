@@ -153,22 +153,16 @@ _PROVIDER_BUILDERS: dict[str, Callable] = {
 
 # ── Model factory ────────────────────────────────────────────────────
 
-def _validated_site_config():
-    """Load `SiteConfig` and assert the required LLM fields are populated."""
-    from linkedin.models import SiteConfig
-
-    cfg = SiteConfig.load()
-    if not cfg.llm_api_key:
-        raise ValueError("LLM_API_KEY is not set in Site Configuration.")
-    if not cfg.ai_model:
-        raise ValueError("AI_MODEL is not set in Site Configuration.")
-    return cfg
-
-
 def get_llm_model():
-    """Return a configured pydantic-ai `Model` for the current `SiteConfig`."""
-    cfg = _validated_site_config()
-    builder = _PROVIDER_BUILDERS.get(cfg.llm_provider)
-    if builder is None:
-        raise ValueError(f"Unknown LLM provider: {cfg.llm_provider!r}")
-    return builder(cfg)
+    """Return a configured pydantic-ai `Model` for the local Ollama instance."""
+    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+    from openai import AsyncOpenAI
+    from linkedin.conf import OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_API_KEY
+
+    client = AsyncOpenAI(
+        base_url=OLLAMA_API_BASE,
+        api_key=OLLAMA_API_KEY,
+        max_retries=_MAX_RETRIES,
+    )
+    return OpenAIModel(OLLAMA_MODEL, provider=OpenAIProvider(openai_client=client))

@@ -90,23 +90,23 @@ def run_qualification(session, qualifier: BayesianQualifier) -> str | None:
         _save_qualification_result(session, qualifier, lead_id, public_id, embedding, 0, "no profile text available")
         return public_id
 
-    campaign = session.campaign
     label, reason = qualify_with_llm(
         profile_text,
-        product_docs=campaign.product_docs,
-        campaign_objective=campaign.campaign_objective,
+        similarity_score=candidate.similarity_score or 0.0,
     )
     _save_qualification_result(session, qualifier, lead_id, public_id, embedding, label, reason)
     return public_id
 
 
 def _save_qualification_result(session, qualifier: BayesianQualifier, lead_id: int, public_id: str, embedding: np.ndarray, label: int, reason: str):
-    # LLM rejections are tracked as FAILED Deals with "Disqualified" closing reason
-    # (campaign-scoped), not as Lead.disqualified (permanent account-level exclusion).
+    from crm.models import Lead
     from linkedin.db.deals import create_disqualified_deal
     from linkedin.db.leads import promote_lead_to_deal
 
     qualifier.update(embedding, label)
+
+    # Persist match status on Lead for CSV export
+    Lead.objects.filter(pk=lead_id).update(is_match=(label == 1))
 
     if label == 1:
         try:

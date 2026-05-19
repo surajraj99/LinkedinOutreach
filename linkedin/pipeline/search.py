@@ -14,9 +14,14 @@ def run_search(session) -> str | None:
     """Use the next search keyword to discover new profiles. Returns keyword or None."""
     from linkedin.actions.search import search_people
     from linkedin.pipeline.search_keywords import generate_search_keywords
-    from linkedin.models import SearchKeyword
+    from linkedin.models import SearchKeyword, ActionLog
 
     campaign = session.campaign
+
+    # --- Rate limit check ---
+    if not session.linkedin_profile.can_execute(ActionLog.ActionType.SEARCH):
+        logger.info("Daily search limit reached — skipping")
+        return None
 
     if not SearchKeyword.objects.filter(campaign=campaign, used=False).exists():
         used = list(
@@ -24,7 +29,7 @@ def run_search(session) -> str | None:
             .values_list("keyword", flat=True)
         )
         fresh = generate_search_keywords(
-            product_docs=campaign.product_docs,
+            natural_language_query=campaign.product_docs,
             campaign_objective=campaign.campaign_objective,
             exclude_keywords=used if used else None,
         )
@@ -46,6 +51,8 @@ def run_search(session) -> str | None:
     kw.used = True
     kw.used_at = timezone.now()
     kw.save()
+
+    session.linkedin_profile.record_action(ActionLog.ActionType.SEARCH, campaign)
 
     logger.info(colored("\u25b6 search", "magenta", attrs=["bold"]) + " keyword=%r", kw.keyword)
     search_people(session, kw.keyword)

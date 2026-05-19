@@ -7,6 +7,19 @@ from linkedin.tz_detect import system_timezone
 
 
 # ----------------------------------------------------------------------
+# LLM Config (Ollama)
+# ----------------------------------------------------------------------
+OLLAMA_API_BASE = "http://host.docker.internal:11434/v1"
+OLLAMA_MODEL = "gemma4:e4b"
+OLLAMA_API_KEY = "ollama"
+
+# ----------------------------------------------------------------------
+# Rate Limiting & Anti-Ban
+# ----------------------------------------------------------------------
+DAILY_PROFILE_VIEW_LIMIT = 25
+DAILY_SEARCH_LIMIT = 5
+
+# ----------------------------------------------------------------------
 # Paths
 # ----------------------------------------------------------------------
 ROOT_DIR = Path(__file__).parent.parent
@@ -22,8 +35,8 @@ FIXTURE_PROFILES_DIR = FIXTURE_DIR / "profiles"
 FIXTURE_PAGES_DIR = FIXTURE_DIR / "pages"
 DUMP_PAGES = False
 
-MIN_DELAY = 5
-MAX_DELAY = 8
+MIN_DELAY = 5.5
+MAX_DELAY = 14.2
 
 # ----------------------------------------------------------------------
 # Browser config

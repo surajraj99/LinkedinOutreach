@@ -40,15 +40,18 @@ def format_prediction(prob: float, entropy: float, std: float, n_obs: int) -> st
 
 class QualificationDecision(BaseModel):
     """Structured LLM output for lead qualification."""
-    qualified: bool = Field(description="True if the profile is a good prospect, False otherwise")
-    reason: str = Field(description="Brief explanation for the decision")
+    is_match: bool = Field(description="True if they work in computational biology, data science, or foundation models")
+    talking_points: str = Field(description="1-2 sentences identifying shared technical ground")
 
 
-def qualify_with_llm(profile_text: str, product_docs: str, campaign_objective: str) -> tuple[int, str]:
-    """Call LLM to qualify a profile. Returns (label, reason).
+def qualify_with_llm(profile_text: str, similarity_score: float) -> tuple[int, str]:
+    """Call LLM to qualify a profile based on similarity and content. Returns (label, reason).
 
     label: 1 = accept, 0 = reject.
     """
+    if similarity_score < 0.65:
+        return (0, f"Low similarity score: {similarity_score:.4f}")
+
     from pydantic_ai import Agent
 
     from linkedin.llm import get_llm_model, run_agent_sync
@@ -57,20 +60,18 @@ def qualify_with_llm(profile_text: str, product_docs: str, campaign_objective: s
     template = env.get_template("qualify_lead.j2")
 
     prompt = template.render(
-        product_docs=product_docs,
-        campaign_objective=campaign_objective,
         profile_text=profile_text,
     )
 
     agent = Agent(
         get_llm_model(),
         output_type=QualificationDecision,
-        model_settings={"temperature": 0.7, "timeout": 60},
+        model_settings={"temperature": 0.2, "timeout": 60},
     )
     decision = run_agent_sync(agent.run(prompt)).output
 
-    label = 1 if decision.qualified else 0
-    return (label, decision.reason)
+    label = 1 if decision.is_match else 0
+    return (label, decision.talking_points)
 
 
 # ---------------------------------------------------------------------------

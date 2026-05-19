@@ -17,6 +17,9 @@ def goto_page(session,
               timeout: int = BROWSER_NAV_TIMEOUT_MS,
               error_message: str = "",
               ):
+    # Mimic human behavior with randomized sleep before clicking/paginating
+    session.wait()
+
     page = session.page
     action()
     if not page:
@@ -26,8 +29,6 @@ def goto_page(session,
         page.wait_for_url(lambda url: expected_url_pattern in unquote(url), timeout=timeout)
     except PlaywrightTimeoutError:
         pass  # we still continue and check URL below
-
-    session.wait()
 
     current = unquote(page.url)
     if expected_url_pattern not in current:

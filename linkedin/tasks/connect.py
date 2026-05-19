@@ -120,8 +120,10 @@ def handle_connect(task, session, qualifiers):
             _reschedule()
             return
 
-        # get_connection_status already navigated to the profile page
-        new_state = send_connection_request(session=session, profile=profile)
+        # --- DISABLED for Targeted Networking Refactor ---
+        # new_state = send_connection_request(session=session, profile=profile)
+        logger.info("SKIPPING connection request for %s (Automation disabled)", public_id)
+        new_state = ProfileState.PENDING # Assume pending to continue state machine for testing
 
         if new_state == ProfileState.QUALIFIED:
             # No Connect button found — track attempt, disqualify after MAX_CONNECT_ATTEMPTS

@@ -104,12 +104,25 @@ class LinkedInProfile(models.Model):
 
     def can_execute(self, action_type: str) -> bool:
         """Check if the action is allowed under daily/weekly rate limits."""
+        from linkedin.conf import DAILY_PROFILE_VIEW_LIMIT, DAILY_SEARCH_LIMIT
+
         # Reset exhaustion flag on a new day
         exhausted_date = self._exhausted.get(action_type)
         if exhausted_date is not None and exhausted_date != date.today():
             del self._exhausted[action_type]
         if action_type in self._exhausted:
             return False
+
+        # Hardcoded limits for Targeted Networking
+        if action_type == ActionLog.ActionType.SEARCH:
+            if self._daily_count(action_type) >= DAILY_SEARCH_LIMIT:
+                return False
+        elif action_type == ActionLog.ActionType.PROFILE_VIEW:
+            if self._daily_count(action_type) >= DAILY_PROFILE_VIEW_LIMIT:
+                return False
+
+        if action_type not in _RATE_LIMIT_FIELDS:
+            return True
 
         daily_field, weekly_field = _RATE_LIMIT_FIELDS[action_type]
 
@@ -183,6 +196,8 @@ class ActionLog(models.Model):
     class ActionType(models.TextChoices):
         CONNECT = "connect", "Connect"
         FOLLOW_UP = "follow_up", "Follow Up"
+        PROFILE_VIEW = "profile_view", "Profile View"
+        SEARCH = "search", "Search"
 
     linkedin_profile = models.ForeignKey(
         LinkedInProfile,
@@ -227,6 +242,7 @@ class Task(models.Model):
         CONNECT = "connect"
         CHECK_PENDING = "check_pending"
         FOLLOW_UP = "follow_up"
+        EXPORT = "export"
 
     class Status(models.TextChoices):
         PENDING = "pending"

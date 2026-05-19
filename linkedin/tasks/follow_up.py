@@ -95,8 +95,9 @@ def handle_follow_up(task, session, qualifiers):
     profile = _build_send_profile(deal)
 
     if decision.action == "send_message":
-        logger.info("[%s] follow_up message for %s: %s", session.campaign, public_id, decision.message)
-        sent = send_raw_message(session, profile, decision.message)
+        logger.info("[%s] SKIPPING follow_up message for %s (Automation disabled): %s", session.campaign, public_id, decision.message)
+        # sent = send_raw_message(session, profile, decision.message)
+        sent = True # Mock success
         if not sent:
             set_profile_state(session, public_id, ProfileState.QUALIFIED.value)
             logger.warning("follow_up for %s: send failed — moving to QUALIFIED for re-connection", public_id)

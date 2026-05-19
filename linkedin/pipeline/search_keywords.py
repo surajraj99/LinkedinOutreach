@@ -18,12 +18,12 @@ class SearchKeywords(BaseModel):
 
 
 def generate_search_keywords(
-    product_docs: str,
+    natural_language_query: str,
     campaign_objective: str,
-    n_keywords: int = 10,
+    n_keywords: int = 5,
     exclude_keywords: list[str] | None = None,
 ) -> list[str]:
-    """Call LLM to generate LinkedIn search keywords from campaign context.
+    """Call LLM to generate LinkedIn Boolean search strings from a natural language goal.
 
     Returns a list of search query strings.
     """
@@ -35,7 +35,7 @@ def generate_search_keywords(
     template = env.get_template("search_keywords.j2")
 
     prompt = template.render(
-        product_docs=product_docs,
+        natural_language_query=natural_language_query,
         campaign_objective=campaign_objective,
         n_keywords=n_keywords,
         exclude_keywords=exclude_keywords or [],
@@ -44,7 +44,7 @@ def generate_search_keywords(
     agent = Agent(
         get_llm_model(),
         output_type=SearchKeywords,
-        model_settings={"temperature": 0.9},
+        model_settings={"temperature": 0.7},
     )
     result = run_agent_sync(agent.run(prompt)).output
 
